@@ -324,7 +324,7 @@ function renderDetail() {
     <label class="deadtoggle${m.dead ? ' on' : ''}"><input type="checkbox" data-act="dead" ${m.dead ? 'checked' : ''}> Dead</label>
     </div>
     ${state.tab === 'lore' ? loreHtml(m) : `${statBlockHtml(m)}
-    ${m.notes ? `<div class="notes">${fmt(m.notes)}</div>` : ''}`}
+    ${m.notes ? `<div class="notes">${fmtBlock(m.notes)}</div>` : ''}`}
     <p class="sb-foot">${sourcesOf(m).length > 1 ? 'Sources: ' : ''}${esc(sourcesOf(m).join('; ') || 'No source')}${m.tags ? ` · Tags: ${esc(m.tags)}` : ''}${m.updated ? ` · Edited ${new Date(m.updated).toLocaleDateString()}` : ''}</p>
   </div>`;
 }
@@ -340,8 +340,8 @@ function loreHtml(m) {
       <figcaption class="picactions">${pictureShowingFor(m.id)
         ? '<button class="btn primary" type="button" data-act="hidepic">Hide picture</button><span class="note">On the player view now</span>'
         : '<button class="btn" type="button" data-act="showpic">Show to players</button><span class="note">Shows on the player view for up to 90 seconds.</span>'}</figcaption></figure>` : ''}
-    ${m.tactics ? `<section class="lorebox tactics"><h3>Tactics</h3><p class="desc">${fmt(m.tactics)}</p></section>` : ''}
-    ${m.description ? `<section class="lorebox"><h3>Lore</h3><div class="desc">${fmt(m.description)}</div></section>` : ''}
+    ${m.tactics ? `<section class="lorebox tactics"><h3>Tactics</h3><div class="desc">${fmtBlock(m.tactics)}</div></section>` : ''}
+    ${m.description ? `<section class="lorebox"><h3>Lore</h3><div class="desc">${fmtBlock(m.description)}</div></section>` : ''}
   </article>`;
 }
 
@@ -411,6 +411,9 @@ function traitsHtml(m) {
 }
 
 // Light formatting you can type: *italic* and **bold**
+// Several lines of typed text, with indents and bullet lists (the suite's /core/text.js; plain lines if it can't load)
+function fmtBlock(text) { return window.DMPText ? window.DMPText.textHTML(text, fmt) : `<div style="white-space:pre-wrap">${fmt(text)}</div>`; }
+import('/core/text.js').then(() => { try { if (!state.editing) renderDetail(); } catch {} }).catch(() => {});
 function fmt(text) {
   return esc(text)
     .replace(/\*\*(?=\S)([^*\n]+?)\*\*/g, '<b>$1</b>')
@@ -942,7 +945,7 @@ async function start() {
   initCrSelects();
   wire();
   initCombat({
-    toast, confirmBox, choice, statBlockHtml, fmt,
+    toast, confirmBox, choice, statBlockHtml, fmt, fmtBlock,
     getMonster: id => state.byId.get(id),
     allMonsters: () => state.monsters,
     settings: () => state.settings,

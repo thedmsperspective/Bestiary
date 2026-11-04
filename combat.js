@@ -960,7 +960,7 @@ function detailHtml() {
     sections.push(`<div class="dbox"><h3>Notes</h3><textarea class="field" data-c="pcnotes" rows="3" placeholder="Anything to remember about this character">${esc(r.notes || '')}</textarea></div>`);
   } else {
     const m = ctx.getMonster(c.monsterId);
-    if (m?.tactics) sections.push(`<div class="dbox tacticsbox"><h3>Tactics</h3><p class="desc" style="margin:0">${ctx.fmt(m.tactics)}</p></div>`);
+    if (m?.tactics) sections.push(`<div class="dbox tacticsbox"><h3>Tactics</h3><div class="desc" style="margin:0">${ctx.fmtBlock ? ctx.fmtBlock(m.tactics) : ctx.fmt(m.tactics)}</div></div>`);
     sections.push(`<div class="dbox sbwrap">${m ? ctx.statBlockHtml(m) : '<p class="note">This monster is no longer in your library.</p>'}</div>`);
   }
   if (c.kind === 'monster') {
