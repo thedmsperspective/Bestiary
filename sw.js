@@ -1,6 +1,6 @@
 // Offline support: every app file is cached on first visit, then served from the device.
 // When you publish an update, bump VERSION so tablets pick up the new files on their next launch.
-const VERSION = 'bestiary-v47';
+const VERSION = 'bestiary-v48';
 const FILES = [
   './', './index.html', './styles.css', './app.js', './db.js', './parser.js', './combat.js', './encounters.js', './sync.js', './sheets.js', './cs-model.js', './cs-rules.js', './conditions.js', './conditions-srd.js', './player.html', './player.js',
   './srd-monsters.json', './srd2024-monsters.json', './manifest.webmanifest',
@@ -12,7 +12,7 @@ const FILES = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES.map(u => new Request(u, { cache: 'reload' })))).then(() => caches.open(VERSION)).then(c => Promise.all(['/core/suite.js', '/core/text.js'].map(u => c.add(new Request(u, { cache: 'reload' })).catch(() => {})))) // the suite core, if reachable
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES.map(u => new Request(u, { cache: 'reload' })))).then(() => caches.open(VERSION)).then(c => Promise.all(['/core/suite.js', '/core/text.js', '/core/columns.js'].map(u => c.add(new Request(u, { cache: 'reload' })).catch(() => {})))) // the suite core, if reachable
     .then(() => self.skipWaiting()));
 });
 
