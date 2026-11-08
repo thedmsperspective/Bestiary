@@ -947,7 +947,7 @@ async function start() {
   initCombat({
     toast, confirmBox, choice, statBlockHtml, fmt, fmtBlock,
     getMonster: id => state.byId.get(id),
-    allMonsters: () => state.monsters,
+    allMonsters: () => state.monsters.filter(m => !otherEdition(m)), // the table's edition only (no SRD 5.2 doubles on a 2014 table)
     settings: () => state.settings,
     onChange: updateBadge,
     pushDetail: () => { if (isNarrow()) history.pushState({ view: 'cdetail' }, ''); },
@@ -958,7 +958,7 @@ async function start() {
   initEncounters({
     toast, confirmBox, choice,
     getMonster: id => state.byId.get(id),
-    allMonsters: () => state.monsters,
+    allMonsters: () => state.monsters.filter(m => !otherEdition(m)), // the table's edition only (no SRD 5.2 doubles on a 2014 table)
     combat: { monsterCount, clearMonsters, setLoaded, addMonster: addMonsterToCombat },
     goCombat: () => { setMode('combat'); updateBadge(); },
   });
