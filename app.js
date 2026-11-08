@@ -203,8 +203,8 @@ window.addEventListener('dmp-suite', () => { const e = edition(); if (lastEditio
 
 /* ---------- filters + list ---------- */
 function buildFilterOptions() {
-  const types = [...new Set(state.monsters.map(m => (m.type || '').toLowerCase()).filter(Boolean))].sort();
-  const sources = [...new Set(state.monsters.flatMap(m => sourcesOf(m).map(sourceBook)).filter(Boolean))].sort();
+  const types = [...new Set(state.monsters.filter(m => !otherEdition(m)).map(m => (m.type || '').toLowerCase()).filter(Boolean))].sort();
+  const sources = [...new Set(state.monsters.filter(m => !otherEdition(m)).flatMap(m => sourcesOf(m).map(sourceBook)).filter(Boolean))].sort();
   fill($('#fType'), 'All types', types);
   fill($('#fSource'), 'All sources', [...sources, '__mine']);
   fill($('#fSize'), 'All sizes', SIZES);
@@ -260,7 +260,7 @@ function filtersActive() {
 
 function renderList() {
   const items = filtered();
-  $('#count').textContent = `${items.length} of ${state.monsters.length} monsters`;
+  $('#count').textContent = `${items.length} of ${state.monsters.filter(m => !otherEdition(m)).length} monsters`;
   $('#clearFilters').hidden = !filtersActive();
   listEl.innerHTML = items.map(m => {
     const mine = !isSrdId(m.id);
