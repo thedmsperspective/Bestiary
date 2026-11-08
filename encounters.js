@@ -51,6 +51,9 @@ function totalXp(enc) {
 function groups() { return [...new Set(es.list.map(e => e.group).filter(Boolean))].sort(); }
 
 /* ---------- list view ---------- */
+const OPEN_KEY = 'bestiary-enc-open';
+function openGroups() { try { return new Set(JSON.parse(localStorage.getItem(OPEN_KEY) || '[]')); } catch { return new Set(); } }
+function saveOpenGroups(o) { try { localStorage.setItem(OPEN_KEY, JSON.stringify([...o])); } catch {} }
 function renderList() {
   es.editing = null;
   const body = $('#encBody');
@@ -64,8 +67,10 @@ function renderList() {
       byGroup.get(g).push(e);
     });
     const order = [...byGroup.keys()].sort((a, b) => (a === '') - (b === '') || a.localeCompare(b));
-    body.innerHTML = order.map(g => `<section class="encgroup">
-      <h3>${g ? esc(g) : 'Ungrouped'}</h3>
+    // each group folds up; which ones are open is remembered on this device (all open while there's only one group)
+    const open = openGroups();
+    body.innerHTML = order.map(g => `<details class="encgroup" data-g="${esc(g)}" ${order.length === 1 || open.has(g) ? 'open' : ''}>
+      <summary><h3>${g ? esc(g) : 'Ungrouped'}</h3><span class="note">${byGroup.get(g).length}</span></summary>
       <ul class="enclist">${byGroup.get(g).map(e => `<li>
         <div class="encinfo">
           <span class="nm">${esc(e.name)}</span>
@@ -76,7 +81,11 @@ function renderList() {
           <button class="btn" type="button" data-e="edit" data-id="${e.id}">Edit</button>
           <button class="btn primary" type="button" data-e="load" data-id="${e.id}">Load</button>
         </span>
-      </li>`).join('')}</ul></section>`).join('');
+      </li>`).join('')}</ul></details>`).join('');
+    body.querySelectorAll('details.encgroup').forEach(d => d.addEventListener('toggle', () => {
+      if (order.length < 2) return;
+      const o = openGroups(); if (d.open) o.add(d.dataset.g); else o.delete(d.dataset.g); saveOpenGroups(o);
+    }));
   }
   $('#encFoot').innerHTML = `<button class="btn" type="button" data-e="new">New encounter</button>
     <span class="spacer"></span><button class="btn primary" type="submit" value="close">Done</button>`;
@@ -150,6 +159,7 @@ async function saveEditor() {
   const i = es.list.findIndex(x => x.id === e.id);
   if (i >= 0) es.list[i] = e; else es.list.push(e);
   es.dirty = false;
+  { const o = openGroups(); o.add(e.group || ''); saveOpenGroups(o); } // show the encounter you just saved
   await persist();
   ctx.toast(`Saved ${e.name}`);
   renderList();

@@ -287,6 +287,12 @@ input.mini{width:70px;min-height:36px;padding:2px 6px;border-radius:6px;border:1
 /* Encounters */
 .encbody{display:grid;gap:12px;max-height:62dvh;overflow:auto}
 .encgroup h3{margin:0 0 4px;font:700 1.05rem var(--serif);color:var(--accent)}
+details.encgroup{margin-bottom:6px}
+details.encgroup>summary{display:flex;align-items:baseline;gap:8px;cursor:pointer;list-style:none;padding:6px 0;min-height:36px}
+details.encgroup>summary::-webkit-details-marker{display:none}
+details.encgroup>summary::before{content:'▸';color:var(--accent);width:1em}
+details.encgroup[open]>summary::before{content:'▾'}
+details.encgroup>summary h3{margin:0}
 .enclist,.encmons{list-style:none;margin:0;padding:0}
 .enclist li{display:flex;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
 .encinfo{flex:1;display:grid;gap:2px;min-width:0}
