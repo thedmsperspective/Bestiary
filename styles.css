@@ -450,3 +450,5 @@ details.encgroup>summary h3{margin:0}
 
 .sheetlink{margin:4px 12px 0;font-size:.85rem;color:var(--muted)}
 .sheetlink.bad{color:#e0707a;font-weight:600}
+.pickpend{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:8px 12px;border:1px solid var(--accent);border-radius:10px;background:color-mix(in srgb,var(--accent) 14%,transparent)}.pickpend #pickSecs{font-size:1.2em}
+.pickpend .pendbtns{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}

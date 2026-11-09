@@ -328,6 +328,7 @@ function startActive() {
 }
 
 function pickNext(key, how) {
+  clearPending(); // a pick, by anyone, settles a player's pending one
   const a = act(); const u = units().find(x => x.key === key); if (!u) return;
   snapshot();
   if (how === 'point') { a.ip.left--; a.ip.round = a.round; }
@@ -340,6 +341,7 @@ function pickNext(key, how) {
 
 function endTurnActive() {
   const a = act(); if (!a.current) return;
+  clearPending();
   snapshot();
   a.acted.push(a.current); a.last = a.current; a.hurtAfter = a.hurt; a.hurt = []; a.current = null;
   const left = units().filter(u => !u.down && !a.acted.includes(u.key));
@@ -353,6 +355,7 @@ function endTurnActive() {
 }
 
 function undoActive() {
+  clearPending();
   const a = act(); const prev = a.history?.pop();
   if (!prev) return ctx.toast('Nothing to undo.');
   Object.assign(a, JSON.parse(prev)); cs.enc.round = a.round;
@@ -408,7 +411,9 @@ function viewFor(p) {
   const cur = a.current && all.find(x => x.key === a.current);
   return {
     on: true, round: a.round, done: p.reqDone || '',
-    mine: !!u && a.current === u.key, acted: !!u && a.acted.includes(u.key), picks: !!u && !a.current && a.last === u.key && a.acted.length > 0,
+    mine: !!u && a.current === u.key, acted: !!u && a.acted.includes(u.key), picks: !!u && !a.current && a.last === u.key && (a.acted.length > 0 || pickDelay() > 0),
+    ...(pickDelay() && u && !a.current && a.last === u.key && !pending ? { choices: pickChoices().map(x => ({ k: x.key, n: pubName(x) })) } : {}),
+    ...(pending && !a.current ? { pend: { n: pending.pub, by: pending.by } } : {}),
     current: cur ? cur.name : '',
     start: o.includes('first') || o.includes('next'), point: o.includes('ppoint'), free: o.includes('free'),
   };
@@ -478,6 +483,44 @@ function liveWatch() {
   }
 }
 
+/* ---------- players pick who goes next (Table Rules: "Players pick who goes next") ----------
+   When a player's turn ends, their sheet lists everyone who hasn't acted. Their pick starts a countdown here; when it
+   runs out that turn starts, unless the DM steps in (Interrupt, Start now, Cancel). Not saved: a reload just drops it. */
+const pickDelay = () => { try { const v = String(suite()?.tableSettings?.().pickNext || 'off'); return /^\d+$/.test(v) ? Math.min(60, Number(v)) : 0; } catch { return 0; } };
+let pending = null; // { by, key, name, pub, until, timer, tick }
+function hiddenIndex() {
+  const hl = cs.enc.combatants.filter(x => x.kind === 'monster' && x.hideName);
+  return { count: hl.length, map: new Map(hl.map((x, i) => [x.cid, i])) };
+}
+// A unit's name as players see it (hidden names stay hidden)
+function pubName(u, hid = hiddenIndex()) {
+  if (u.group) return u.members.some(m => m.hideName) ? 'Unknown creatures' : u.name.replace(/ group$/, 's');
+  return pvName(u.members[0], hid);
+}
+// Who a player may pick: anyone who could take the next turn
+function pickChoices() { return units().filter(x => !x.members.every(m => m.kind === 'lair') && options(x).includes('next')); }
+function clearPending() { if (!pending) return; clearTimeout(pending.timer); clearInterval(pending.tick); pending = null; schedulePublish(); }
+function startPending(p, target) {
+  clearPending();
+  const d = pickDelay();
+  pending = { by: p.name, key: target.key, name: target.name, pub: pubName(target), until: Date.now() + d * 1000 };
+  pending.timer = setTimeout(runPending, d * 1000);
+  pending.tick = setInterval(() => { const el = root?.querySelector('#pickSecs'); if (el && pending) el.textContent = Math.max(0, Math.ceil((pending.until - Date.now()) / 1000)); }, 250);
+  ctx.toast(`${p.name} picked ${target.name} to go next.`);
+  render(); schedulePublish();
+}
+function runPending() {
+  const pd = pending; if (!pd) return;
+  clearPending();
+  const a = act(), u = units().find(x => x.key === pd.key);
+  if (!a || a.current || !u || !options(u).includes('next')) { render(); return ctx.toast(`${pd.name} can't go next any more. Pick who does.`); }
+  pickNext(pd.key, 'next');
+  ctx.toast(`${pd.name} starts their turn (${pd.by}'s pick).`);
+  schedulePublish();
+}
+const pendingBar = () => pending ? `<div class="pickpend" role="status"><span><b>${esc(pending.by)}</b> picked <b>${esc(pending.name)}</b> to go next · starts in <b id="pickSecs">${Math.max(0, Math.ceil((pending.until - Date.now()) / 1000))}</b>s</span>
+  <span class="pendbtns"><button class="btn" type="button" data-c="pendint">Interrupt</button><button class="btn primary" type="button" data-c="pendgo">Start now</button><button class="btn ghost" type="button" data-c="pendno">Cancel</button></span></div>` : '';
+
 // A player tapped Start my turn, Interrupt or End my turn on their sheet. The same tap can arrive twice (over the
 // live link, then again a few seconds later through Drive), so each one is handled once, by its id.
 const handledReqs = new Set();
@@ -491,6 +534,13 @@ function playerRequest(p, req) {
   if (!fresh || !a || !u || !cs.enc.started || !activeMode() || req.round !== a.round) { schedulePublish(); return; }
   const o = options(u);
   const say = m => ctx.toast(`${p.name} ${m} (from their sheet).`);
+  if (req.kind === 'pick') {
+    const t = units().find(x => x.key === req.target);
+    // only the one whose turn just ended picks, only while nobody's acting, and only someone who could go next
+    if (pickDelay() && !a.current && a.last === u.key && t && pickChoices().some(x => x.key === t.key)) startPending(p, t);
+    else if (Date.now() - req.at < 15000) ctx.toast(`${p.name} tried to pick who goes next, but that isn't possible right now.`);
+    schedulePublish(); return;
+  }
   if (req.kind === 'start' && (o.includes('first') || o.includes('next'))) { pickNext(u.key, 'next'); say('started their turn'); }
   else if (req.kind === 'point' && o.includes('ppoint')) { pickNext(u.key, 'ppoint'); say('interrupted with their Interrupt Point'); }
   else if (req.kind === 'free' && o.includes('free')) { pickNext(u.key, 'free'); say('interrupted (free, they were hurt)'); }
@@ -713,6 +763,7 @@ function renderInner() {
       <button class="btn" type="button" data-c="addmon">Add monsters</button>
       <button class="btn" type="button" data-c="party">Party</button>
       ${e.combatants.some(c => c.kind === 'monster') || e.started ? '<button class="btn danger" type="button" data-c="end">End combat</button>' : ''}
+      ${AI ? pendingBar() : ''}
     </div>
     <p class="sheetlink" id="sheetLink" hidden></p>
     <div class="cmain">
@@ -1115,6 +1166,9 @@ function onClick(e) {
     case 'pick': return pickNext(b.dataset.k, b.dataset.how);
     case 'endturn': return endTurnActive();
     case 'undo': return undoActive();
+    case 'pendgo': if (pending) { clearTimeout(pending.timer); runPending(); } return;
+    case 'pendint': if (pending) { const n = pending.name; clearPending(); render(); ctx.toast(`Stopped ${n}'s turn from starting. Pick who interrupts.`); } return;
+    case 'pendno': if (pending) { clearPending(); render(); ctx.toast('Pick cancelled. Choose who goes next.'); } return;
     case 'end': return endCombat();
     case 'encounters': return ctx.openEncounters();
     case 'condref': return ctx.openConditions((r?.conds || [])[0]);
