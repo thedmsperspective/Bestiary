@@ -661,7 +661,18 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<':
 const pips = (n, used, act, extra = '', label = '') =>
   Array.from({ length: n }, (_, i) => `<button type="button" class="pip${i < used ? ' on' : ''}" data-c="${act}" data-i="${i}" ${extra} aria-label="${label} ${i + 1}${i < used ? ', used' : ''}"></button>`).join('');
 
-export function render() { renderInner(); showLinkStatus(); }
+// Redraw, keeping the list and the stat block where they were scrolled to (an HP change from a player's sheet,
+// a turn ending… shouldn't jump the stat block back to the top). Picking someone else still starts at their top.
+export function render() {
+  const keep = root ? ['.clist', '.cdetail'].map(q => root.querySelector(q)?.scrollTop || 0) : [0, 0];
+  const sel = cs.sel, y = window.scrollY;
+  renderInner(); showLinkStatus();
+  if (!root) return;
+  const [l, d] = ['.clist', '.cdetail'].map(q => root.querySelector(q));
+  if (l) l.scrollTop = keep[0];
+  if (d && cs.sel === sel) d.scrollTop = keep[1];
+  if (window.scrollY !== y) window.scrollTo(0, y);
+}
 function renderInner() {
   if (!root) return;
   ensurePartyInEncounter();
