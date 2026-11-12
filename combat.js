@@ -975,6 +975,7 @@ function detailHtml() {
       <div class="pipsrow"><span>Successes</span>${pips(3, r.death.s, 'ds', '', 'Success')}</div>
       <div class="pipsrow"><span>Failures</span>${pips(3, r.death.f, 'df', '', 'Failure')}</div>
       ${r.death.s >= 3 ? '<p class="note">Stable at 0 HP.</p>' : r.death.f >= 3 ? '<p class="note">Three failures: dead.</p>' : ''}
+      ${r.death.f < 3 ? '<button class="btn primary nat20" type="button" data-c="nat20">Natural 20: back up with 1 HP</button>' : ''}
     </div>`);
   }
 
@@ -1189,6 +1190,8 @@ function onClick(e) {
   const amt = +root.querySelector('#hpAmt')?.value;
   switch (act) {
     case 'damage': case 'heal': case 'temp': return applyHp(c, act, amt);
+    // a natural 20 on a death save: regains 1 hit point (healing clears the death saves, as usual)
+    case 'nat20': ctx.toast(`${nameOf(c)} rolled a natural 20 and is back up with 1 HP!`); return applyHp(c, 'heal', 1);
     case 'cond': {
       const k = b.dataset.k; r.conds = r.conds || [];
       r.conds = r.conds.includes(k) ? r.conds.filter(x => x !== k) : [...r.conds, k];
