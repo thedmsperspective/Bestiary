@@ -186,7 +186,9 @@ const pc = id => cs.party.find(p => p.id === id);
 const rec = c => (c.kind === 'pc' ? pc(c.pcId) : c) || c;
 const nameOf = c => rec(c).name || c.name;
 const selected = () => cs.enc.combatants.find(c => c.cid === cs.sel);
-const isDown = c => c.kind === 'monster' && rec(c).hp <= 0;
+// Table Rules: do monsters at 0 HP make death saves? Then they're only out of the fight once they've died.
+const monsterSaves = () => { try { return suite()?.tableSettings?.().monsterSaves === 'on'; } catch { return false; } };
+const isDown = c => c.kind === 'monster' && rec(c).hp <= 0 && (!monsterSaves() || rec(c).death?.f >= 3 || rec(c).exh >= 6);
 const usedRecharges = c => (c.uses || []).filter(u => u.kind === 'recharge' && u.used);
 
 function newPc() {
@@ -628,7 +630,7 @@ function applyHp(c, kind, amount) {
     r.hp = Math.max(0, r.hp - left);
     const a = act();
     if (activeMode() && a?.current) { const k = unitKey(c); if (!a.hurt.includes(k)) a.hurt.push(k); }
-    if (wasZero && left > 0) ctx.toast(`${nameOf(c)} takes damage at 0 HP: mark a death save failure (two if it was a critical hit).`);
+    if (wasZero && left > 0 && (c.kind === 'pc' || monsterSaves())) ctx.toast(`${nameOf(c)} takes damage at 0 HP: mark a death save failure (two if it was a critical hit).`);
     else if (r.conc) ctx.toast(`Concentration check for ${nameOf(c)}: Constitution save, DC ${Math.max(10, Math.floor(amount / 2))}.`);
   } else if (kind === 'heal') {
     if (r.hp <= 0 && r.death) r.death = { s: 0, f: 0 };
@@ -785,7 +787,7 @@ function stageOf(c) {
     return r.death?.s >= 3 ? 'stable' : 'dying';
   }
   // creatures make death saves too: three failures and it's dead, three successes and it's stable
-  if (r.hp <= 0) return r.exh >= 6 || r.death?.f >= 3 ? 'dead' : r.death?.s >= 3 ? 'stable' : 'down';
+  if (r.hp <= 0) return r.exh >= 6 || r.death?.f >= 3 ? 'dead' : !monsterSaves() ? 'down' : r.death?.s >= 3 ? 'stable' : 'dying';
   const p = r.hp / (r.maxHp || 1);
   if (p >= 1) return 'unhurt';
   if (p > 0.5) return 'wounded';
@@ -919,7 +921,7 @@ function rowHtml(c, i, opt = null) {
       </button>${opt?.picks || ''}</li>`;
   }
   const hpPct = r.maxHp ? Math.max(0, Math.min(100, Math.round(r.hp / r.maxHp * 100))) : 0;
-  const state = r.exh >= 6 || (r.hp <= 0 && r.death?.f >= 3) ? 'dead' : r.hp <= 0 && r.death?.s >= 3 ? 'stable' : (r.hp <= 0 ? (c.kind === 'pc' || r.death?.s || r.death?.f ? 'dying' : 'down') : '');
+  const state = r.exh >= 6 || (r.hp <= 0 && r.death?.f >= 3 && (c.kind === 'pc' || monsterSaves())) ? 'dead' : r.hp <= 0 && r.death?.s >= 3 ? 'stable' : (r.hp <= 0 ? (c.kind === 'pc' || monsterSaves() ? 'dying' : 'down') : '');
   const chips = [...(r.conds || []), r.exh ? `exhaustion ${r.exh}` : '', r.conc ? 'concentrating' : '', ...usedRecharges(c).map(u => `${u.name} spent`)].filter(Boolean);
   return `<li class="crow ${c.kind} ${state} ${opt ? 'st-' + opt.status : ''} ${opt?.member ? 'member' : ''}" ${cur ? 'aria-current="step"' : ''} ${c.cid === cs.sel ? 'data-sel="1"' : ''}>
     <button type="button" class="cpick" data-c="sel" data-cid="${c.cid}">
@@ -967,7 +969,7 @@ function detailHtml() {
   </div>`);
 
   // Death saves (every creature at 0 HP, players and monsters alike)
-  if (r.hp <= 0 && !(r.exh >= 6)) {
+  if (r.hp <= 0 && !(r.exh >= 6) && (c.kind === 'pc' || monsterSaves())) {
     if (!r.death) r.death = { s: 0, f: 0 };
     sections.push(`<div class="dbox"><h3>Death saves</h3>
       <div class="pipsrow"><span>Successes</span>${pips(3, r.death.s, 'ds', '', 'Success')}</div>
