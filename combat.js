@@ -186,6 +186,47 @@ const pc = id => cs.party.find(p => p.id === id);
 const rec = c => (c.kind === 'pc' ? pc(c.pcId) : c) || c;
 const nameOf = c => rec(c).name || c.name;
 const selected = () => cs.enc.combatants.find(c => c.cid === cs.sel);
+/* ---------- Notches (Table Rules): a monster's armor, shield and weapons wear down and break ----------
+   Read from its stat block: the armor and shield in its AC ("15 (leather armor, shield)") and its weapon attacks.
+   Counts live on the combatant (c.notch[key] = { n, mag }). A natural 20 against it notches the shield first, then the armor;
+   a natural 1 on its attack notches that weapon. */
+const NOTCH_DEF = { light: 3, medium: 5, heavy: 7, shield: 1, weapon: 5, mlight: 9, mmedium: 15, mheavy: 21, mshield: 4, mweapon: 15 };
+const notchesOn = () => { try { return suite()?.tableSettings?.().notches === 'on'; } catch { return false; } };
+const notchMax = () => { try { return suite()?.notchLimits?.() || NOTCH_DEF; } catch { return NOTCH_DEF; } };
+const N_ARMOR = { light: ['padded', 'leather', 'studded leather'], medium: ['hide', 'chain shirt', 'scale mail', 'breastplate', 'half plate', 'spiked armor'], heavy: ['ring mail', 'chain mail', 'splint', 'plate'] };
+const N_WEAPONS = ['club', 'dagger', 'greatclub', 'handaxe', 'javelin', 'light hammer', 'mace', 'quarterstaff', 'sickle', 'spear', 'light crossbow', 'crossbow, light', 'dart', 'shortbow', 'sling', 'battleaxe', 'flail', 'glaive', 'greataxe', 'greatsword', 'halberd', 'lance', 'longsword', 'maul', 'morningstar', 'pike', 'rapier', 'scimitar', 'shortsword', 'trident', 'war pick', 'warhammer', 'whip', 'blowgun', 'hand crossbow', 'crossbow, hand', 'heavy crossbow', 'crossbow, heavy', 'longbow', 'net'];
+function monsterGear(m) {
+  if (!m) return [];
+  const out = [];
+  const inner = (/\(([^)]*)\)/.exec(String(m.ac || '')) || [])[1] || '';
+  for (const part of inner.split(',').map(x => x.trim().toLowerCase()).filter(Boolean)) {
+    if (/shield/.test(part)) { out.push({ key: 'shield', name: 'Shield', kind: 'shield' }); continue; }
+    const nm = part.replace(/\s*\+\d+/, '').replace(/\s+armor$/, '').trim();
+    const k = Object.entries(N_ARMOR).find(([, l]) => l.includes(nm))?.[0];
+    if (k) out.push({ key: 'armor', name: part.replace(/\b\w/g, x => x.toUpperCase()), kind: k, mag: /\+\d/.test(part) });
+  }
+  const acts = Array.isArray(m.actions) ? m.actions : [];
+  for (const a of acts) {
+    const nm = String(a.name || '').toLowerCase().replace(/\s*\([^)]*\)/g, '').replace(/\s*,?\s*\+\d+/g, '').trim();
+    if (N_WEAPONS.includes(nm) && !out.some(x => x.key === `w:${nm}`)) out.push({ key: `w:${nm}`, name: a.name.replace(/\s*\([^)]*\)/g, ''), kind: 'weapon', mag: /\+\d/.test(a.name) });
+  }
+  return out;
+}
+function notchBox(c) {
+  if (!notchesOn() || c.kind !== 'monster') return '';
+  const gear = monsterGear(ctx.getMonster(c.monsterId)); if (!gear.length) return '';
+  const lim = notchMax(), st = c.notch || {};
+  const rows = gear.map(g => {
+    const s = st[g.key] || {}, mag = s.mag ?? !!g.mag, max = lim[(mag ? 'm' : '') + g.kind] || NOTCH_DEF[g.kind], n = Math.min(max, Number(s.n) || 0), broken = n >= max;
+    return `<div class="pipsrow notchrow"><span>${esc(g.name)}${broken ? ' <b class="bad">Broken</b>' : ''}</span>
+      <span class="nctl"><b>${n}/${max}</b><button class="btn" type="button" data-c="notch" data-k="${esc(g.key)}" data-d="1" ${broken ? 'disabled' : ''} aria-label="Add a notch">+</button><button class="btn" type="button" data-c="notch" data-k="${esc(g.key)}" data-d="-1" ${n ? '' : 'disabled'} aria-label="Take a notch off">−</button>
+      <label class="nmag"><input type="checkbox" data-c="notchmag" data-k="${esc(g.key)}" ${mag ? 'checked' : ''}> magical</label></span></div>`;
+  }).join('');
+  const sh = gear.find(g => g.key === 'shield'), shBroken = sh && (Number(st.shield?.n) || 0) >= (lim[(st.shield?.mag ? 'm' : '') + 'shield'] || 1);
+  return `<div class="dbox notchbox"><h3>Notches</h3>${rows}
+    <p class="note">A natural 20 against it: notch the ${sh && !shBroken ? 'shield first, then the armor' : 'armor'}. A natural 1 on its attack: notch that weapon. Broken gear can't be used: lower its AC by hand when its armor or shield breaks.</p></div>`;
+}
+
 // Table Rules: do monsters at 0 HP make death saves? Then they're only out of the fight once they've died.
 const monsterSaves = () => { try { return suite()?.tableSettings?.().monsterSaves === 'on'; } catch { return false; } };
 const isDown = c => c.kind === 'monster' && rec(c).hp <= 0 && (!monsterSaves() || rec(c).death?.f >= 3 || rec(c).exh >= 6);
@@ -978,6 +1019,7 @@ function detailHtml() {
       ${r.death.f < 3 ? '<button class="btn primary nat20" type="button" data-c="nat20">Natural 20: back up with 1 HP</button>' : ''}
     </div>`);
   }
+  { const nb = notchBox(c); if (nb) sections.push(nb); }
 
   // Turn economy
   if (c.kind === 'monster') {
@@ -1190,6 +1232,15 @@ function onClick(e) {
   const amt = +root.querySelector('#hpAmt')?.value;
   switch (act) {
     case 'damage': case 'heal': case 'temp': return applyHp(c, act, amt);
+    case 'notch': {
+      c.notch = c.notch || {}; const k = b.dataset.k, cur = c.notch[k] || {};
+      const g = monsterGear(ctx.getMonster(c.monsterId)).find(x => x.key === k); if (!g) return;
+      const mag = cur.mag ?? !!g.mag, max = notchMax()[(mag ? 'm' : '') + g.kind] || NOTCH_DEF[g.kind];
+      const n = Math.max(0, Math.min(max, (Number(cur.n) || 0) + Number(b.dataset.d)));
+      c.notch[k] = { ...cur, n };
+      if (n >= max && Number(b.dataset.d) > 0) ctx.toast(`${nameOf(c)}'s ${g.name.toLowerCase()} breaks!`);
+      persist(); render(); return;
+    }
     // a natural 20 on a death save: regains 1 hit point (healing clears the death saves, as usual)
     case 'nat20': ctx.toast(`${nameOf(c)} rolled a natural 20 and is back up with 1 HP!`); return applyHp(c, 'heal', 1);
     case 'cond': {
@@ -1236,6 +1287,11 @@ function onClick(e) {
 function onChange(e) {
   const el = e.target; const act = el.dataset.c;
   if (!act) return;
+  if (act === 'notchmag') {
+    const c = cs.enc.combatants.find(x => x.cid === cs.sel); if (!c) return;
+    c.notch = c.notch || {}; c.notch[el.dataset.k] = { ...(c.notch[el.dataset.k] || {}), mag: el.checked };
+    persist(); render(); return;
+  }
   if (act === 'init') {
     const c = cs.enc.combatants.find(x => x.cid === el.dataset.cid);
     if (!c) return;

@@ -453,3 +453,4 @@ details.encgroup>summary h3{margin:0}
 .pickpend{flex-basis:100%;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:8px 12px;border:1px solid var(--accent);border-radius:10px;background:color-mix(in srgb,var(--accent) 14%,transparent)}.pickpend #pickSecs{font-size:1.2em}
 .pickpend .pendbtns{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
 .dbox .nat20{margin-top:10px;width:100%}
+.notchbox .notchrow{align-items:center}.notchbox .nctl{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.notchbox .nctl .btn{min-width:36px;padding:4px 8px}.notchbox .nmag{font-size:.85rem;display:inline-flex;gap:4px;align-items:center}.notchbox .bad{color:var(--danger)}
