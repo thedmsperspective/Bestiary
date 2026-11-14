@@ -106,6 +106,14 @@ async function syncRoster() {
     const sheets = SH.sheetList();
     if (!sheets.length) return;
     let changed = false;
+    // an "Unnamed" member added for a sheet that had no name and is no longer in the party: drop it
+    const phantom = p => p.charId && p.name === 'Unnamed' && !sheets.some(s => s.id === p.charId);
+    const ghosts = new Set([...cs.party, ...cs.benched].filter(phantom).map(p => p.id));
+    if (ghosts.size) {
+      cs.party = cs.party.filter(p => !ghosts.has(p.id)); cs.benched = cs.benched.filter(p => !ghosts.has(p.id));
+      cs.enc.combatants = cs.enc.combatants.filter(c => !(c.kind === 'pc' && ghosts.has(c.pcId)));
+      changed = true;
+    }
     // older members: tie them to their character once (an earlier chosen sheet, or the same name)
     for (const p of [...cs.party, ...cs.benched]) {
       if (p.charId || p.sheetId === 'none') continue;
