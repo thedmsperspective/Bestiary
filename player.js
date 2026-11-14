@@ -17,6 +17,26 @@
     pic.hidden = false;
     imgTimer = setTimeout(() => { pic.hidden = true; }, Math.min(left, 90000));
   }
+  // Slides from Session Notes (on this same device). They stay up until Session Notes sends "back to combat";
+  // a slide left up from an earlier day isn't shown when the screen opens again.
+  const SLIDE_KEY = 'bestiary-player-slide';
+  const slideEl = document.getElementById('slide');
+  let slideAt = 0;
+  function showSlide(m) {
+    if (!m || m.at <= slideAt) return;
+    slideAt = m.at;
+    const s = m.slide;
+    if (!s || Date.now() - m.at > 12 * 3600 * 1000) { slideEl.hidden = true; slideEl.querySelector('.body').innerHTML = ''; return; }
+    slideEl.querySelector('h1').textContent = s.title || '';
+    const img = s.img ? `<div class="simg"><img alt="" src="${esc(s.img)}"></div>` : '';
+    // the text arrives as HTML Session Notes made from what you typed (already made safe there)
+    const txt = s.html ? `<div class="txt">${s.html}</div>` : '';
+    slideEl.querySelector('.body').innerHTML = txt + img;
+    slideEl.className = `slide${img && txt ? ' both' : txt ? ' only-text' : ''}`;
+    slideEl.querySelector('.count').textContent = s.of > 1 ? `${s.n} / ${s.of}` : '';
+    slideEl.hidden = false;
+  }
+  function readSlide() { try { showSlide(JSON.parse(localStorage.getItem(SLIDE_KEY) || 'null')); } catch { /* ignore */ } }
   function readImg() { try { showImg(JSON.parse(localStorage.getItem(IMG_KEY) || 'null')); } catch { /* ignore */ } }
   const wrap = document.getElementById('wrap');
   const STAGES = {
@@ -80,10 +100,10 @@
     try { take(JSON.parse(localStorage.getItem(KEY) || 'null')); } catch { /* storage blocked */ }
   }
 
-  try { new BroadcastChannel(KEY).onmessage = e => (e.data?.type === 'img' ? showImg(e.data) : take(e.data)); } catch { /* fall back to storage events */ }
-  window.addEventListener('storage', e => { if (e.key === KEY) readStored(); if (e.key === IMG_KEY) readImg(); });
-  setInterval(() => { readStored(); readImg(); }, 1500); // safety net if a message is missed
-  readStored(); readImg();
+  try { new BroadcastChannel(KEY).onmessage = e => (e.data?.type === 'img' ? showImg(e.data) : e.data?.type === 'slide' ? showSlide(e.data) : take(e.data)); } catch { /* fall back to storage events */ }
+  window.addEventListener('storage', e => { if (e.key === KEY) readStored(); if (e.key === IMG_KEY) readImg(); if (e.key === SLIDE_KEY) readSlide(); });
+  setInterval(() => { readStored(); readImg(); readSlide(); }, 1500); // safety net if a message is missed
+  readStored(); readImg(); readSlide();
 
   // Keep the TV awake while this is open
   let lock = null;
