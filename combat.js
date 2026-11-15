@@ -582,14 +582,15 @@ function playerRequest(p, req) {
   const fresh = req.at && Date.now() - req.at < 5 * 60000;
   const c = cs.enc.combatants.find(x => x.kind === 'pc' && x.pcId === p.id);
   const u = c && units().find(x => x.members.includes(c));
-  if (!fresh || !a || !u || !cs.enc.started || !activeMode() || req.round !== a.round) { schedulePublish(); return; }
+  const pick = req.kind === 'pick' && a && u && cs.enc.started && activeMode();
+  if (!pick && (!fresh || !a || !u || !cs.enc.started || !activeMode() || req.round !== a.round)) { schedulePublish(); return; }
   const o = options(u);
   const say = m => ctx.toast(`${p.name} ${m} (from their sheet).`);
   if (req.kind === 'pick') {
     const t = units().find(x => x.key === req.target);
     // only the one whose turn just ended picks, only while nobody's acting, and only someone who could go next
     if (pickDelay() && !a.current && a.last === u.key && t && pickChoices().some(x => x.key === t.key)) startPending(p, t);
-    else if (Date.now() - req.at < 15000) ctx.toast(`${p.name} tried to pick who goes next, but that isn't possible right now.`);
+    else ctx.toast(`${p.name} tried to pick who goes next, but ${!pickDelay() ? 'players picking is off in Table Rules' : a.current ? 'someone is already acting' : a.last !== u.key ? "their turn wasn't the last one" : "that one can't go next"}.`);
     schedulePublish(); return;
   }
   if (req.kind === 'start' && (o.includes('first') || o.includes('next'))) { pickNext(u.key, 'next'); say('started their turn'); }
