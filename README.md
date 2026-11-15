@@ -45,4 +45,4 @@ When I send you new files, upload them to the same repository the same way (file
 
 ## Credits
 
-Includes material from the System Reference Document 5.1 by Wizards of the Coast LLC, licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Fonts: Alegreya and Alegreya Sans, SIL Open Font License.
+Includes material from the System Reference Document 5.1 and the System Reference Document 5.2 by Wizards of the Coast LLC, licensed under CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/). Fonts: Alegreya and Alegreya Sans, SIL Open Font License.

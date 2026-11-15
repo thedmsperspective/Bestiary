@@ -63,7 +63,7 @@ export function loadSpells(force = false) {
 export function findSpell(name, ed = '2014') {
   const k = norm(name); if (!k) return null;
   const other = ed === '2024' ? '2014' : '2024';
-  const tries = [k, k.replace(/^(greater|lesser) /, ''), k.replace(/'s /, ' ')];
+  const tries = [k, k.replace(/^(greater|lesser) /, ''), k.replace(/^[a-z]+'s /, '')]; // "Melf's Acid Arrow" is Acid Arrow in the SRD
   for (const t of tries) { const e = mine.get(t) || byEd[ed]?.get(t) || byEd[other]?.get(t); if (e) return e; }
   return null;
 }

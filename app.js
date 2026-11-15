@@ -6,7 +6,7 @@ import { initEncounters, loadEncounters, openEncounters, saveFromCombat, encount
 import { HP_BY_CR, blankMonster, detectSpellcasting, crNum, pbForCr, XP_BY_CR } from './parser.js';
 import { startSpells, onSpellsLoaded, spellLines, isSpellEntry } from './spells.js';
 
-const SRD_VERSION = 2; // 2: the 2024 monsters (SRD 5.2) alongside the 2014 ones (SRD 5.1)
+const SRD_VERSION = 3; // 2: the 2024 monsters (SRD 5.2) alongside the 2014 ones (SRD 5.1); 3: the 2024 spell lists filled in
 const SRD_FILES = ['srd-monsters.json', 'srd2024-monsters.json'];
 const isSrdId = id => /^srd(24)?-/.test(String(id || ''));
 // The table's edition (2014 or 2024, set in the launcher's Table Rules): the other edition's SRD monsters stay out of
@@ -131,6 +131,20 @@ async function seedSrd() {
   const gone = new Set(state.deletedSrd.map(d => d.id));
   const fresh = srd.filter(m => !existing.has(m.id) && !gone.has(m.id)).map(m => ({ ...m, created: 0, updated: 0 }));
   await db.putMany(fresh);
+  // 3: the 2024 monsters' spell lists were missing ("casts one of the following spells:" and nothing after).
+  // Fill them in on monsters already here, wherever that text is still as it came (your own changes are left alone).
+  const byId = new Map(srd.map(m => [m.id, m])), patched = [];
+  for (const m of await db.all()) {
+    const s = byId.get(m.id); if (!s || !m.id.startsWith('srd24-')) continue;
+    let changed = false;
+    for (const [k] of SECTIONS) for (const e of m[k] || []) {
+      if (!/:\s*$/.test(e.desc || '')) continue;
+      const n = (s[k] || []).find(x => x.name === e.name);
+      if (n && n.desc !== e.desc && n.desc.startsWith(e.desc.trimEnd())) { e.desc = n.desc; changed = true; }
+    }
+    if (changed) patched.push(m);
+  }
+  if (patched.length) await db.putMany(patched);
   await db.setMeta('srdVersion', SRD_VERSION);
 }
 
