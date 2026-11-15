@@ -4,6 +4,7 @@ import { initSync, suite, suiteToken } from './sync.js';
 import { initConditions, loadConditions, openConditions, conditionsForBackup, mergeConditionsFromBackup } from './conditions.js';
 import { initEncounters, loadEncounters, openEncounters, saveFromCombat, encountersForBackup, mergeEncountersFromBackup } from './encounters.js';
 import { HP_BY_CR, blankMonster, detectSpellcasting, crNum, pbForCr, XP_BY_CR } from './parser.js';
+import { startSpells, onSpellsLoaded, spellLines, isSpellEntry } from './spells.js';
 
 const SRD_VERSION = 2; // 2: the 2024 monsters (SRD 5.2) alongside the 2014 ones (SRD 5.1)
 const SRD_FILES = ['srd-monsters.json', 'srd2024-monsters.json'];
@@ -414,14 +415,18 @@ function traitsHtml(m) {
 // Several lines of typed text, with indents and bullet lists (the suite's /core/text.js; plain lines if it can't load)
 function fmtBlock(text) { return window.DMPText ? window.DMPText.textHTML(text, fmt) : `<div style="white-space:pre-wrap">${fmt(text)}</div>`; }
 import('/core/text.js').then(() => { try { if (!state.editing) renderDetail(); } catch {} }).catch(() => {});
+// spell names in Spellcasting lists open the spell (from the Character Sheet's Library)
+startSpells();
+onSpellsLoaded(() => { try { if (!state.editing) renderDetail(); } catch {} });
 function fmt(text) {
   return esc(text)
     .replace(/\*\*(?=\S)([^*\n]+?)\*\*/g, '<b>$1</b>')
     .replace(/\*(?=\S)([^*\n]+?)(?<=\S)\*/g, '<i>$1</i>');
 }
 
+let sbEd = '2014'; // the edition of the stat block being drawn, for finding its spells
 function entryHtml(e) {
-  const desc = fmt(e.desc)
+  const desc = (isSpellEntry(e) ? spellLines(e.desc, fmt, sbEd) : fmt(e.desc))
     .replace(/^(Melee or Ranged Weapon Attack:|Melee Weapon Attack:|Ranged Weapon Attack:|Melee Spell Attack:|Ranged Spell Attack:)/, '<i>$1</i>')
     .replace(/\bHit:/g, '<i>Hit:</i>');
   return `<p class="entry"><i>${esc(e.name)}.</i> <span class="desc">${desc}</span></p>`;
@@ -438,6 +443,7 @@ function deadBanner(m) {
 }
 
 function statBlockHtml(m) {
+  sbEd = /5\.2|2024/.test(m.source || '') ? '2024' : '2014';
   const sub = [m.size, m.type + (m.subtype ? ` (${m.subtype})` : '')].filter(Boolean).join(' ') + (m.alignment ? `, ${m.alignment}` : '');
   const sections = SECTIONS.slice(1).map(([k, label]) => {
     const list = m[k] || [];

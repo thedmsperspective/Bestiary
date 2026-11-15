@@ -1,8 +1,8 @@
 // Offline support: every app file is cached on first visit, then served from the device.
 // When you publish an update, bump VERSION so tablets pick up the new files on their next launch.
-const VERSION = 'bestiary-v59';
+const VERSION = 'bestiary-v60';
 const FILES = [
-  './', './index.html', './styles.css', './app.js', './db.js', './parser.js', './combat.js', './encounters.js', './sync.js', './sheets.js', './cs-model.js', './cs-rules.js', './conditions.js', './conditions-srd.js', './player.html', './player.js',
+  './', './index.html', './styles.css', './app.js', './db.js', './parser.js', './combat.js', './encounters.js', './sync.js', './sheets.js', './cs-model.js', './cs-rules.js', './conditions.js', './conditions-srd.js', './player.html', './player.js', './spells.js',
   './srd-monsters.json', './srd2024-monsters.json', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png',
   './fonts/alegreya-latin-400-normal.woff2', './fonts/alegreya-latin-400-italic.woff2',
@@ -12,7 +12,7 @@ const FILES = [
 ];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES.map(u => new Request(u, { cache: 'reload' })))).then(() => caches.open(VERSION)).then(c => Promise.all(['/core/suite.js', '/core/text.js', '/core/columns.js'].map(u => c.add(new Request(u, { cache: 'reload' })).catch(() => {})))) // the suite core, if reachable
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES.map(u => new Request(u, { cache: 'reload' })))).then(() => caches.open(VERSION)).then(c => Promise.all(['/core/suite.js', '/core/text.js', '/core/columns.js', '/Char-Sheet/data/srd.json', '/Char-Sheet/data/srd2024.json'].map(u => c.add(new Request(u, { cache: 'reload' })).catch(() => {})))) // the suite core, if reachable
     .then(() => self.skipWaiting()));
 });
 
@@ -25,7 +25,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   // The shared suite core (/core/) lives outside this app: always try the newest copy, fall back to the saved one offline
-  if (e.request.method === 'GET' && url.origin === location.origin && url.pathname.startsWith('/core/')) {
+  if (e.request.method === 'GET' && url.origin === location.origin && (url.pathname.startsWith('/core/') || /^\/Char-Sheet\/data\/srd(2024)?\.json$/.test(url.pathname))) { // the spells come from the Character Sheet's data
     // no-cache: check with the server every time (GitHub Pages otherwise lets browsers reuse a copy for 10 minutes)
     e.respondWith(fetch(e.request, { cache: 'no-cache' }).then(res => { if (res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); } return res; })
       .catch(() => caches.match(e.request, { ignoreSearch: true })));

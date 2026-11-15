@@ -454,3 +454,16 @@ details.encgroup>summary h3{margin:0}
 .pickpend .pendbtns{display:flex;flex-wrap:wrap;gap:6px;margin-left:auto}
 .dbox .nat20{margin-top:10px;width:100%}
 .notchbox .notchrow{align-items:center}.notchbox .nctl{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.notchbox .nctl .btn{min-width:36px;padding:4px 8px}.notchbox .nmag{font-size:.85rem;display:inline-flex;gap:4px;align-items:center}.notchbox .bad{color:var(--danger)}
+
+/* Spells in stat blocks */
+.spell-link { cursor: pointer; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; color: inherit; border-radius: 3px; }
+.spell-link:hover, .spell-link:focus-visible { background: color-mix(in srgb, currentColor 12%, transparent); outline: none; }
+.spell-link.miss { text-decoration-style: dotted; opacity: .85; }
+.spell-dlg { width: min(620px, calc(100vw - 24px)); max-height: calc(100vh - 40px); box-sizing: border-box; padding: 18px 20px; border-radius: 14px; border: 1px solid var(--line, #888); background: var(--panel, #fff); color: var(--ink, inherit); }
+.spell-dlg::backdrop { background: rgba(0,0,0,.5); }
+.spell-dlg h2 { margin: 0 0 2px; }
+.spell-dlg .dsub { margin: 0 0 10px; opacity: .8; }
+.spell-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 6px 14px; margin: 0 0 10px; }
+.spell-facts dt { font-size: 12px; opacity: .7; } .spell-facts dd { margin: 0; font-weight: 600; }
+.spell-desc { margin: 8px 0; line-height: 1.45; }
+.spell-dlg .drow { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; margin-top: 12px; }
