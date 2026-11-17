@@ -108,6 +108,13 @@ export function carried(c) {
   const counts = k => (String(k).startsWith('own:') ? (c.containers || []).some(x => `own:${x.id}` === k)
     : String(k).startsWith('mi:') ? !!(c.magicItems || []).find(m => m.cid === String(k).split(':')[1])?.container?.counts : false);
   for (const [k, rows] of Object.entries(c.bags || {})) if (counts(k)) for (const r of rows || []) w += rowWeight(r);
+  // the containers themselves (a backpack weighs 5 lb): typed, or by the SRD table
+  const STD = [['backpack', 5], ['pouch', 1], ['sack', 0.5], ['basket', 2], ['chest', 25]];
+  for (const x of c.containers || []) {
+    if (x.wt !== '' && x.wt != null) { w += Number(x.wt) || 0; continue; }
+    const n = String(x.name || '').toLowerCase(); if (/component/.test(n)) continue;
+    const s = STD.find(([k]) => new RegExp(`\\b${k}\\b`).test(n)); if (s) w += s[1];
+  }
   for (const m of c.magicItems || []) { const inBag = c.inside?.[m.cid]; if (inBag && String(inBag).startsWith('mi:') && !counts(inBag)) continue; w += Number(m.weight) || 0; }
   // infused items that are new objects (Replicate Magic Item): the artificer's own, and ones others gave them
   for (const i of c.infused || []) if (!i.holder || i.holder === c.id) w += Number(i.weight) || 0;
