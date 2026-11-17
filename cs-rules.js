@@ -18,8 +18,9 @@ export const SKILLS = [
 
 // Inventory Tracker categories, in the order of the paper tracker
 export const INV_CATS = [
-  ['armor', 'Armor & Clothing'], ['weapons', 'Weapons'], ['tools', 'Tools & Kits'],
-  ['treasure', 'Treasure & Trinkets'], ['components', 'Spell Components'], ['general', 'General Items'],
+  ['armor', 'Armor & Clothing'], ['weapons', 'Weapons'], ['treasure', 'Treasure & Trinkets'], ['gear', 'Gear'],
+  // the older sections (now Gear), for a sheet that hasn't updated yet
+  ['tools', 'Tools & Kits'], ['components', 'Spell Components'], ['general', 'General Items'],
 ];
 export const COINS = [['cp', 'Copper'], ['sp', 'Silver'], ['ep', 'Electrum'], ['gp', 'Gold'], ['pp', 'Platinum']];
 const COIN_CP = { cp: 1, sp: 10, ep: 50, gp: 100, pp: 1000 };
@@ -103,7 +104,11 @@ export function rowWeight(r) { return num(r.wt) * (r.qty === '' || r.qty == null
 export function carried(c) {
   let w = coinWeight(c);
   for (const [k] of INV_CATS) for (const r of c.inv?.[k] || []) w += rowWeight(r);
-  for (const m of c.magicItems || []) w += Number(m.weight) || 0; // items the DM's magic item app gave this character
+  // containers: an ordinary one's contents count; a magic one's only if its setting says so (a Bag of Holding's don't)
+  const counts = k => (String(k).startsWith('own:') ? (c.containers || []).some(x => `own:${x.id}` === k)
+    : String(k).startsWith('mi:') ? !!(c.magicItems || []).find(m => m.cid === String(k).split(':')[1])?.container?.counts : false);
+  for (const [k, rows] of Object.entries(c.bags || {})) if (counts(k)) for (const r of rows || []) w += rowWeight(r);
+  for (const m of c.magicItems || []) { const inBag = c.inside?.[m.cid]; if (inBag && String(inBag).startsWith('mi:') && !counts(inBag)) continue; w += Number(m.weight) || 0; }
   // infused items that are new objects (Replicate Magic Item): the artificer's own, and ones others gave them
   for (const i of c.infused || []) if (!i.holder || i.holder === c.id) w += Number(i.weight) || 0;
   for (const i of c.infusedHeld || []) w += Number(i.weight) || 0;
