@@ -200,13 +200,18 @@ function adoptSuiteSettings() {
   const core = suite(); if (!core?.tableSettings) return;
   const ts = core.tableSettings();
   let changed = false;
+  // moved to another table (each has its own Table Rules): take that table's as they are
+  const tid = core.currentTable?.()?.id || '';
+  let was = ''; try { was = localStorage.getItem('bestiary-rules-table') || ''; } catch { /* */ }
+  const moved = !!tid && was !== tid;
+  if (moved) try { localStorage.setItem('bestiary-rules-table', tid); } catch { /* */ }
   for (const [k, m] of Object.entries(SUITE_SET)) {
     const sAt = ts.at[m.key] || 0;
-    if (sAt > (state.settings.suiteAt?.[k] || 0) && m.out(state.settings[k]) !== ts[m.key]) {
+    if ((moved || sAt > (state.settings.suiteAt?.[k] || 0)) && m.out(state.settings[k]) !== ts[m.key]) {
       state.settings[k] = m.in(ts[m.key]);
       state.settings.suiteAt = { ...(state.settings.suiteAt || {}), [k]: sAt };
       changed = true;
-    }
+    } else if (moved) state.settings.suiteAt = { ...(state.settings.suiteAt || {}), [k]: sAt }; // nothing to push back
   }
   if (changed) { saveSettings(); applyTheme(); if (!state.editing) renderDetail(); renderCombat(); }
   pushSuiteSettings();
